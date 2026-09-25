@@ -1,0 +1,33 @@
+diff --git a/src/modules/filesystem/physfs/Filesystem.cpp b/src/modules/filesystem/physfs/Filesystem.cpp
+index d3c650269..c45955303 100644
+--- a/src/modules/filesystem/physfs/Filesystem.cpp
++++ b/src/modules/filesystem/physfs/Filesystem.cpp
+@@ -21,6 +21,7 @@
+ #include <iostream>
+ #include <sstream>
+ #include <algorithm>
++#include <cstdlib>
+ 
+ #include "common/utf8.h"
+ #include "common/b64.h"
+@@ -186,6 +187,20 @@ bool Filesystem::setIdentity(const char *ident, bool appendToPath)
+ 
+ 	save_path_full = storage_path + std::string("/save/") + save_identity;
+ 
++	// Enginehost: LOVE saves under the system's application-data folder
++	// (%APPDATA%/LOVE/<identity>, or %APPDATA%/<identity> when fused). A
++	// runtime hosted by Enginehost is handed the folder that system location
++	// means, as the parent the identity goes under; where the game saves
++	// inside it is still the game's own choice.
++	const char *enginehost_parent = getenv("ENGINEHOST_LOVE_SAVE_PARENT");
++	if (enginehost_parent != nullptr && enginehost_parent[0] != 0)
++	{
++		std::string parent = enginehost_parent;
++		if (!love::android::directoryExists(parent.c_str()))
++			love::android::mkdir(parent.c_str());
++		save_path_full = parent + "/" + save_identity;
++	}
++
+ 	if (!love::android::directoryExists(save_path_full.c_str()) &&
+ 			!love::android::mkdir(save_path_full.c_str()))
+ 		SDL_Log("Error: Could not create save directory %s!", save_path_full.c_str());

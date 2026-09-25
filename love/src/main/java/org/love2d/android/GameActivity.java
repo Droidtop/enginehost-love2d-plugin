@@ -132,6 +132,16 @@ public class GameActivity extends SDLActivity {
         }
     }
 
+    /**
+     * Enginehost: the game to run, set by the host's wrapper activity in its
+     * handleIntent: a folder (with a trailing separator) or an archive, on
+     * storage the host process can already read, so no permission is asked.
+     */
+    protected void setEnginehostGame(String path) {
+        gamePath = path;
+        storagePermissionUnnecessary = true;
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         Log.d("GameActivity", "onNewIntent() with " + intent);
