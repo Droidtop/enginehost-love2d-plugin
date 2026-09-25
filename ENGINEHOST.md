@@ -24,7 +24,10 @@ The seams on a line branch, all of them in the engine's Android glue:
 
 - `GameActivity.setEnginehostGame`, which sets the game path the native side
   asks for, instead of reading it from an intent's data URI.
-- `Filesystem::setIdentity`'s Android branch reads `ENGINEHOST_LOVE_SAVE_PARENT`.
+- `Filesystem::setIdentity`'s Android branch reads `ENGINEHOST_LOVE_SAVE_PARENT`
+  (LÖVE itself is the `love/src/jni/love` submodule, which this repository
+  does not own, so this seam is `enginehost/patches/love/*.patch`, applied to
+  the pinned revision by the workflow).
   LÖVE saves under the system's application-data folder, `%APPDATA%/LOVE/<identity>`
   for a game `love.exe` runs and `%APPDATA%/<identity>` for a fused one.
   Enginehost does not change where a game saves; it only makes that system
