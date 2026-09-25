@@ -1,0 +1,35 @@
+{
+  "bundleId": "dev.enginehost.love2d.11.v1",
+  "engine": "love2d",
+  "pluginVersion": "0.1",
+  "apiVersion": 1,
+  "entrypoint": "org.love2d.android.EngineHostGameActivity",
+  "runtimeTransport": "android-activity",
+  "origin": "https://github.com/droidtop/enginehost-love2d-plugin",
+  "dexFiles": [
+    "classes.dex"
+  ],
+  "resourceApks": [
+    "runtime.apk"
+  ],
+  "capabilities": [
+    {
+      "id": "love2d-11-standard-v1",
+      "engineContext": "standard",
+      "runtimeVersion": "11.5",
+      "supportedSeries": [
+        "11"
+      ]
+    }
+  ],
+  "source": {
+    "upstream": "https://github.com/love2d/love-android",
+    "revision": "plugin/11.5"
+  },
+  "licenses": [
+    "zlib (LÖVE, LÖVE for Android, the Enginehost wrapper)",
+    "LGPL-2.1-or-later (mpg123, OpenAL Soft; shared libraries)",
+    "the other bundled notices in LICENSE.love-android.txt"
+  ],
+  "notes": "LÖVE 11.5, the official LÖVE for Android runtime. Runs 11.x games (11.0 to 11.5 keep one API); games written for 0.10 or earlier need their own line."
+}
