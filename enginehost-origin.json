@@ -1,0 +1,14 @@
+{
+  "description": "Enginehost plugin implementation repository for LÖVE",
+  "engine": "love2d",
+  "engineContexts": [
+    "standard"
+  ],
+  "formatVersion": 1,
+  "implementation": {
+    "id": "love",
+    "name": "LÖVE",
+    "upstream": "https://github.com/love2d/love-android"
+  },
+  "origin": "https://github.com/droidtop/enginehost-love2d-plugin"
+}
