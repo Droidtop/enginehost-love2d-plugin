@@ -38,6 +38,24 @@ The seams on a line branch, all of them in the engine's Android glue:
   (the wrapper is reached by name from the manifest Enginehost writes), and the
   plugin's own application id.
 
+## Transport and sandboxing
+
+`runtimeTransport` is `android-activity`, not `plugin`. LÖVE for Android is
+built on SDL2's `GameActivity`/`SDLActivity`: SDL owns the window, the input
+loop and the GL surface as an `Activity` the OS itself starts and resumes, and
+`android:isolatedProcess="true"` is a `<service>` attribute the manifest schema
+has no equivalent of for `<activity>` (Enginehost `docs/engine-sandbox.md`,
+"Layer 2"). An Activity-transport plugin cannot move into an isolated service
+without the host-side rewrite that doc's roadmap step 6 describes -- replacing
+"the plugin's own Activity is the window" with a host-owned Activity plus an
+isolated service the plugin's View/engine loop runs inside -- which is not
+built yet for any plugin. Until it is, this plugin runs unisolated, in
+`:runtime`, with the same all-files and network access the host process has:
+Enginehost's `LaunchActivity` shows its "Run unsandboxed" prompt on every
+single launch, remembering nothing between runs. This is acceptable by the
+owner's 2026-09-25 decision (`docs/engine-sandbox.md`): a plugin that cannot
+declare `isolatable` is never silently trusted, it is asked every time.
+
 ## Controller
 
 LÖVE reads the pad itself through SDL's game controller (`love.gamepad`), so
