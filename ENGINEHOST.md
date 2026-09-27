@@ -40,21 +40,33 @@ The seams on a line branch, all of them in the engine's Android glue:
 
 ## Transport and sandboxing
 
-`runtimeTransport` is `android-activity`, not `plugin`. LÖVE for Android is
-built on SDL2's `GameActivity`/`SDLActivity`: SDL owns the window, the input
-loop and the GL surface as an `Activity` the OS itself starts and resumes, and
-`android:isolatedProcess="true"` is a `<service>` attribute the manifest schema
-has no equivalent of for `<activity>` (Enginehost `docs/engine-sandbox.md`,
-"Layer 2"). An Activity-transport plugin cannot move into an isolated service
-without the host-side rewrite that doc's roadmap step 6 describes -- replacing
-"the plugin's own Activity is the window" with a host-owned Activity plus an
-isolated service the plugin's View/engine loop runs inside -- which is not
-built yet for any plugin. Until it is, this plugin runs unisolated, in
-`:runtime`, with the same all-files and network access the host process has:
-Enginehost's `LaunchActivity` shows its "Run unsandboxed" prompt on every
-single launch, remembering nothing between runs. This is acceptable by the
-owner's 2026-09-25 decision (`docs/engine-sandbox.md`): a plugin that cannot
-declare `isolatable` is never silently trusted, it is asked every time.
+`runtimeTransport` is `plugin` (changed from `android-activity`; see
+Enginehost `docs/engine-sandbox.md`, "Single transport"). LOVE for Android
+is built on SDL2, whose own Java glue (`org.libsdl.app.SDLActivity`/
+`SDLSurface`, this plugin's own vendored copy under
+`love/src/jni/SDL2/android-project/`) used to assume it was the Activity
+Android itself starts. `EngineHostGamePlugin` (`love/src/main/java/org/love2d/android/`,
+replacing the old `EngineHostGameActivity`) implements `EnginePlugin`
+instead: Enginehost's own host Activity owns the window, and this plugin
+drives SDL's static lifecycle itself, attaching a real `SDLSurface` into
+the session's own `display()` `ViewGroup`. `SDLActivity`/`SDLSurface`
+carry a small, scoped patch on this line branch
+(`SDLActivity.sHostActivity`, routing the handful of calls that genuinely
+need a live, attached Activity -- orientation, minimize, openURL,
+multi-window -- through `EngineHost.activity()` instead of requiring
+`mSingleton` itself to be one); the engine's own C/C++ is unchanged.
+
+**Not yet isolatable.** This is the non-isolated half of the migration,
+proving the transport change itself works before attempting the
+Surface-handoff mechanism a GPU-rendering engine like this one needs under
+isolation (Enginehost `docs/engine-sandbox.md`, "Surface handoff
+feasibility" -- whether an `isolated_app` UID can even reach
+`SurfaceFlinger`/the graphics allocator is still an open, only
+partly-answered platform question, not something this plugin's own pass
+resolves). Until `isolatable: true` is set, Enginehost's "Run
+unsandboxed?" prompt still shows on every launch, same as before this
+migration -- the migration changes what LOVE runs as, not the sandbox
+status a person sees yet.
 
 ## Controller
 
