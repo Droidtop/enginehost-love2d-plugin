@@ -1,0 +1,15 @@
+apply plugin: 'java-library'
+
+def androidSdk = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+if (androidSdk == null) {
+    throw new GradleException("ANDROID_HOME or ANDROID_SDK_ROOT is required")
+}
+
+dependencies {
+    compileOnly files("$androidSdk/platforms/android-34/android.jar")
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
