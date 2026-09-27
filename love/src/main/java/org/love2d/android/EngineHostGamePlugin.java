@@ -172,7 +172,10 @@ public final class EngineHostGamePlugin implements EnginePlugin {
         }
 
         SDL.initialize(); // resets SDLActivity/SDLAudioManager/SDLControllerManager static state; must run before the hooks below
-        SDLActivity.mSingleton = new SDLActivity(); // never Activity-attached; a home for pressBackButton()/sendCommand()/isFinishing() only
+        SDLActivity.mSingleton = new GameActivity(); // never Activity-attached (see class doc); a plain GameActivity,
+        // not bare SDLActivity: dq-actsandbox-01 (BlueStacks) found LOVE's own native/Java glue does
+        // "(GameActivity) SDLActivity.mSingleton", which throws ClassCastException on a bare
+        // SDLActivity instance -- confirmed from the rig's own logcat, not guessed.
         SDLActivity.sHostActivity = activity;
         SDLActivity.sArguments = () -> new String[] {gameFile};
         SDLActivity.sMainSharedObject = () -> "liblove.so"; // GameActivity.getMainSharedObject()'s own API21+ answer; this plugin's minSdk is 26
