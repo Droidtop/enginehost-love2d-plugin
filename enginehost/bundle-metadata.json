@@ -4,7 +4,7 @@
   "pluginVersion": "0.1",
   "apiVersion": 1,
   "entrypoint": "org.love2d.android.EngineHostGamePlugin",
-  "runtimeTransport": "plugin",
+  "runtimeTransport": "plugin-api",
   "origin": "https://github.com/droidtop/enginehost-love2d-plugin",
   "dexFiles": [
     "classes.dex"
