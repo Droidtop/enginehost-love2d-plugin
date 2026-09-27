@@ -22,6 +22,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.text.Editable;
 import android.text.InputType;
@@ -58,6 +59,29 @@ import java.util.Locale;
     SDL Activity
 */
 public class SDLActivity extends Activity implements View.OnSystemUiVisibilityChangeListener {
+    // Enginehost adapter hooks (docs/engine-sandbox.md "Correction... SDLSurface.java"):
+    // mSingleton stays a plain, never-Activity-attached SDLActivity instance
+    // (`new SDLActivity()`, never passed through Android's own Instrumentation/
+    // attach()) -- it exists only as a home for pressBackButton()/sendCommand()/
+    // commandHandler/isFinishing(), none of which need real attachment (checked
+    // per call site, not assumed). Everything that DOES need a real, attached
+    // Activity (orientation, minimize, openURL, multi-window) is redirected
+    // through these hooks instead of mSingleton, set once by the adapter
+    // (EngineHostGamePlugin) before SDL.setupJNI() runs. Every hook has a safe
+    // default so this file still behaves exactly as before for any caller
+    // (e.g. an ordinary Activity-hosted SDLActivity subclass) that never sets
+    // them -- getLibraries()/getArguments()/getMainSharedObject()/
+    // getMainFunction() below still work as virtual overrides in that case,
+    // since these suppliers default to delegating to mSingleton's own
+    // overridable methods rather than replacing that mechanism outright.
+    public static java.util.function.Supplier<String[]> sArguments = () -> mSingleton.getArguments();
+    public static java.util.function.Supplier<String> sMainSharedObject = () -> mSingleton.getMainSharedObject();
+    public static java.util.function.Supplier<String> sMainFunction = () -> mSingleton.getMainFunction();
+    /** Runs on the SDLMain thread once nativeRunMain() returns and the game did not call SDL_Quit itself; replaces mSingleton.finish(). */
+    public static Runnable sOnGameEnded = null;
+    /** The real, attached host Activity -- EngineHost.activity() under the plugin-api transport. Null (and every hook below no-ops) when nobody set it, e.g. an ordinary Activity-hosted subclass that IS mSingleton itself. */
+    public static Activity sHostActivity = null;
+
     private static final String TAG = "SDL";
     private static final int SDL_MAJOR_VERSION = 2;
     private static final int SDL_MINOR_VERSION = 28;
@@ -210,8 +234,8 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     public static boolean mBrokenLibraries = true;
 
     // Main components
-    protected static SDLActivity mSingleton;
-    protected static SDLSurface mSurface;
+    public static SDLActivity mSingleton;
+    public static SDLSurface mSurface;
     protected static DummyEdit mTextEdit;
     protected static boolean mScreenKeyboardShown;
     protected static ViewGroup mLayout;
@@ -222,7 +246,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     protected static HIDDeviceManager mHIDDeviceManager;
 
     // This is what SDL runs in. It invokes SDL_main(), eventually
-    protected static Thread mSDLThread;
+    public static Thread mSDLThread;
 
     protected static SDLGenericMotionListener_API12 getMotionListener() {
         if (mMotionListener == null) {
@@ -667,10 +691,17 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
     // Used to get us onto the activity's main thread
     public void pressBackButton() {
-        runOnUiThread(new Runnable() {
+        // Not runOnUiThread(): mSingleton may be a plain, unattached
+        // SDLActivity instance (see the class-level comment above), whose
+        // inherited Activity.runOnUiThread NPEs (mUiThread/mHandler are only
+        // set by Android's own attach()). A plain main-looper Handler needs
+        // no attachment at all.
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                if (!SDLActivity.this.isFinishing()) {
+                if (sHostActivity != null) {
+                    if (!sHostActivity.isFinishing()) sHostActivity.onBackPressed();
+                } else if (!SDLActivity.this.isFinishing()) {
                     SDLActivity.this.superOnBackPressed();
                 }
             }
@@ -1051,7 +1082,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         }
 
         Log.v(TAG, "setOrientation() requestedOrientation=" + req + " width=" + w +" height="+ h +" resizable=" + resizable + " hint=" + hint);
-        mSingleton.setRequestedOrientation(req);
+        if (sHostActivity != null) sHostActivity.setRequestedOrientation(req); else mSingleton.setRequestedOrientation(req);
     }
 
     /**
@@ -1066,7 +1097,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         Intent startMain = new Intent(Intent.ACTION_MAIN);
         startMain.addCategory(Intent.CATEGORY_HOME);
         startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        mSingleton.startActivity(startMain);
+        (sHostActivity != null ? sHostActivity : mSingleton).startActivity(startMain);
     }
 
     /**
@@ -1836,7 +1867,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             }
             i.addFlags(flags);
 
-            mSingleton.startActivity(i);
+            (sHostActivity != null ? sHostActivity : mSingleton).startActivity(i);
         } catch (Exception ex) {
             return -1;
         }
@@ -1897,9 +1928,9 @@ class SDLMain implements Runnable {
     @Override
     public void run() {
         // Runs SDL_main()
-        String library = SDLActivity.mSingleton.getMainSharedObject();
-        String function = SDLActivity.mSingleton.getMainFunction();
-        String[] arguments = SDLActivity.mSingleton.getArguments();
+        String library = SDLActivity.sMainSharedObject.get();
+        String function = SDLActivity.sMainFunction.get();
+        String[] arguments = SDLActivity.sArguments.get();
 
         try {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DISPLAY);
@@ -1915,9 +1946,11 @@ class SDLMain implements Runnable {
 
         // love2d-mod-start: allow restarting of the native thread
         if (!SDLActivity.mExitCalledFromJava) {
-            if (SDLActivity.mSingleton != null && !SDLActivity.mSingleton.isFinishing()) {
+            SDLActivity.mSDLThread = null;
+            if (SDLActivity.sOnGameEnded != null) {
+                SDLActivity.sOnGameEnded.run();
+            } else if (SDLActivity.mSingleton != null && !SDLActivity.mSingleton.isFinishing()) {
                 // Let's finish the Activity
-                SDLActivity.mSDLThread = null;
                 SDLActivity.mSingleton.finish();
             }  // else: Activity is already being destroyed
         }

@@ -138,7 +138,10 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
         // Prevent a screen distortion glitch,
         // for instance when the device is in Landscape and a Portrait App is resumed.
         boolean skip = false;
-        int requestedOrientation = SDLActivity.mSingleton.getRequestedOrientation();
+        // sHostActivity, not mSingleton: the real, attached host Activity
+        // (docs/engine-sandbox.md "Correction... SDLSurface.java"); mSingleton
+        // may be an unattached stand-in with no real requested orientation.
+        int requestedOrientation = (SDLActivity.sHostActivity != null ? SDLActivity.sHostActivity : SDLActivity.mSingleton).getRequestedOrientation();
 
         if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT || requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT) {
             if (mWidth > mHeight) {
@@ -164,7 +167,7 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
         // Don't skip in MultiWindow.
         if (skip) {
             if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
-                if (SDLActivity.mSingleton.isInMultiWindowMode()) {
+                if ((SDLActivity.sHostActivity != null ? SDLActivity.sHostActivity : SDLActivity.mSingleton).isInMultiWindowMode()) {
                     Log.v("SDL", "Don't skip in Multi-Window");
                     skip = false;
                 }

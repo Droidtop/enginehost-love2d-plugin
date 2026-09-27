@@ -119,4 +119,8 @@ android {
 dependencies {
     api fileTree(dir: 'libs', include: ['*.jar'])
     api 'androidx.appcompat:appcompat:1.6.1'
+    // Enginehost plugin-api contract stubs (docs/engine-sandbox.md "Single
+    // transport"); compileOnly, the real classes come from the host app's
+    // own classpath at runtime, never packaged into this bundle.
+    compileOnly project(':api')
 }
