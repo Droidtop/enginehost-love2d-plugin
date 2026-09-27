@@ -185,6 +185,13 @@ public final class EngineHostGamePlugin implements EnginePlugin {
         SDL.setContext(activity);
         SDL.setupJNI();
 
+        // GameActivity.getGamePath() -- not SDLActivity.sArguments -- is the
+        // real JNI-called entry point love-android's own native side uses for
+        // the game path (dq-actsandbox-02, BlueStacks: leaving this unset hit
+        // getGamePath()'s own checkLovegameFolder() fallback, which calls
+        // getExternalFilesDir() on this unattached instance and NPEs).
+        ((GameActivity) SDLActivity.mSingleton).setEnginehostGame(gameFile);
+
         SDLSurface surface = new SDLSurface(activity);
         SDLActivity.mSurface = surface;
         session.display().addView(surface, new FrameLayout.LayoutParams(-1, -1));
