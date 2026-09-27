@@ -59,29 +59,6 @@ import java.util.Locale;
     SDL Activity
 */
 public class SDLActivity extends Activity implements View.OnSystemUiVisibilityChangeListener {
-    // Enginehost adapter hooks (docs/engine-sandbox.md "Correction... SDLSurface.java"):
-    // mSingleton stays a plain, never-Activity-attached SDLActivity instance
-    // (`new SDLActivity()`, never passed through Android's own Instrumentation/
-    // attach()) -- it exists only as a home for pressBackButton()/sendCommand()/
-    // commandHandler/isFinishing(), none of which need real attachment (checked
-    // per call site, not assumed). Everything that DOES need a real, attached
-    // Activity (orientation, minimize, openURL, multi-window) is redirected
-    // through these hooks instead of mSingleton, set once by the adapter
-    // (EngineHostGamePlugin) before SDL.setupJNI() runs. Every hook has a safe
-    // default so this file still behaves exactly as before for any caller
-    // (e.g. an ordinary Activity-hosted SDLActivity subclass) that never sets
-    // them -- getLibraries()/getArguments()/getMainSharedObject()/
-    // getMainFunction() below still work as virtual overrides in that case,
-    // since these suppliers default to delegating to mSingleton's own
-    // overridable methods rather than replacing that mechanism outright.
-    public static java.util.function.Supplier<String[]> sArguments = () -> mSingleton.getArguments();
-    public static java.util.function.Supplier<String> sMainSharedObject = () -> mSingleton.getMainSharedObject();
-    public static java.util.function.Supplier<String> sMainFunction = () -> mSingleton.getMainFunction();
-    /** Runs on the SDLMain thread once nativeRunMain() returns and the game did not call SDL_Quit itself; replaces mSingleton.finish(). */
-    public static Runnable sOnGameEnded = null;
-    /** The real, attached host Activity -- EngineHost.activity() under the plugin-api transport. Null (and every hook below no-ops) when nobody set it, e.g. an ordinary Activity-hosted subclass that IS mSingleton itself. */
-    public static Activity sHostActivity = null;
-
     private static final String TAG = "SDL";
     private static final int SDL_MAJOR_VERSION = 2;
     private static final int SDL_MINOR_VERSION = 28;
@@ -247,6 +224,30 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
     // This is what SDL runs in. It invokes SDL_main(), eventually
     public static Thread mSDLThread;
+
+    // Enginehost adapter hooks (docs/engine-sandbox.md "Correction... SDLSurface.java"):
+    // mSingleton stays a plain, never-Activity-attached SDLActivity instance
+    // (`new SDLActivity()`, never passed through Android's own Instrumentation/
+    // attach()) -- it exists only as a home for pressBackButton()/sendCommand()/
+    // commandHandler/isFinishing(), none of which need real attachment (checked
+    // per call site, not assumed). Everything that DOES need a real, attached
+    // Activity (orientation, minimize, openURL, multi-window) is redirected
+    // through these hooks instead of mSingleton, set once by the adapter
+    // (EngineHostGamePlugin) before SDL.setupJNI() runs. Every hook has a safe
+    // default so this file still behaves exactly as before for any caller
+    // (e.g. an ordinary Activity-hosted SDLActivity subclass) that never sets
+    // them -- getLibraries()/getArguments()/getMainSharedObject()/
+    // getMainFunction() below still work as virtual overrides in that case,
+    // since these suppliers default to delegating to mSingleton's own
+    // overridable methods rather than replacing that mechanism outright.
+    public static java.util.function.Supplier<String[]> sArguments = () -> mSingleton.getArguments();
+    public static java.util.function.Supplier<String> sMainSharedObject = () -> mSingleton.getMainSharedObject();
+    public static java.util.function.Supplier<String> sMainFunction = () -> mSingleton.getMainFunction();
+    /** Runs on the SDLMain thread once nativeRunMain() returns and the game did not call SDL_Quit itself; replaces mSingleton.finish(). */
+    public static Runnable sOnGameEnded = null;
+    /** The real, attached host Activity -- EngineHost.activity() under the plugin-api transport. Null (and every hook below no-ops) when nobody set it, e.g. an ordinary Activity-hosted subclass that IS mSingleton itself. */
+    public static Activity sHostActivity = null;
+
 
     protected static SDLGenericMotionListener_API12 getMotionListener() {
         if (mMotionListener == null) {
