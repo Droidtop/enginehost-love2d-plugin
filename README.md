@@ -1,3 +1,31 @@
+# LÖVE for Android, packaged for Enginehost
+
+This is droidtop's fork of [love2d/love-android](https://github.com/love2d/love-android), the
+official Android port of the [LÖVE](https://love2d.org) 2D engine. `main` (below) tracks upstream
+as closely as possible, kept fast-forwardable when a new LÖVE release lands. None of the
+Enginehost packaging lives on this branch.
+
+The packaging is on separate branches:
+
+- `plugin-core` strips the standalone LÖVE launcher app (the game picker, the about screen, the
+  file provider) and adds `EngineHostGamePlugin`, which lets Enginehost hand a game folder to the
+  LÖVE runtime through the plugin-api transport instead of through the app's own UI.
+- `plugin/11.5` builds `plugin-core` against LÖVE 11.5 and is what the published bundle for the
+  `11` capability series is built from. `enginehost-origin.json` and
+  `enginehost/bundle-metadata.json` on that branch carry the exact bundle id, entrypoint and
+  supported version range; `enginehost/LICENSES.md` has the full licence breakdown (LÖVE and the
+  wrapper are zlib; mpg123 and OpenAL Soft ship as their own LGPL-2.1-or-later shared libraries so
+  they can be swapped independently).
+
+Games written for LÖVE 11.0 through 11.5 share one API and run under this plugin. Games written
+for LÖVE 0.10 or earlier need a separate line that does not exist yet.
+
+To build the plugin itself, check out `plugin/11.5` (or whichever version branch is current) and
+build with Gradle as usual. Everything below this point is upstream's own README for the
+standalone launcher app that lives on `main` — it does not describe the Enginehost plugin.
+
+---
+
 Android Port of LÖVE, an awesome 2D game engine for Lua (http://love2d.org)  
 Copyright (c) 2006-2024 LOVE Development Team
 
