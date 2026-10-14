@@ -17,6 +17,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Droidtop/tracker#483, crash on start with the joystick module on:
+  `EngineHostGamePlugin` now acquires SDL's `HIDDeviceManager` the way
+  `SDLActivity.startNative()` does. Only that constructor registers the JVM
+  with SDL's HIDAPI, so `SDL_JoystickInit` reached `PLATFORM_hid_init` with a
+  null `JavaVM` and crashed.
+- Droidtop/tracker#483, abort with the joystick module off (`NoSuchMethodError`
+  for `getImmersiveMode`): LOVE's native side calls `GameActivity` instance
+  methods on SDL's context, which is the host Activity under the plugin-api
+  transport. `love/src/common/android.cpp` now asks
+  `GameActivity.getGameActivity()` (engine patch 0002) for the object, and
+  `GameActivity` answers window, service, asset and application-info calls
+  through the host Activity (line patch 0002). `getMetrics()` no longer
+  returns null.
 - `GameActivity.setEnginehostGame()` is the real JNI entry point for the
   game path; a rig run had hit a `NullPointerException` calling it wrong.
 - `mSingleton` needs a real `GameActivity` instance, not a bare

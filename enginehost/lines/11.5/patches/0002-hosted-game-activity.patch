@@ -1,0 +1,133 @@
+diff --git a/love/src/main/java/org/love2d/android/GameActivity.java b/love/src/main/java/org/love2d/android/GameActivity.java
+index 4429159181244712c0383bfe71e6c5bd37a3fe9f..63983fe81a7afa9814e8d84b4255af8187da604b 100644
+--- a/love/src/main/java/org/love2d/android/GameActivity.java
++++ b/love/src/main/java/org/love2d/android/GameActivity.java
+@@ -142,6 +142,27 @@ public class GameActivity extends SDLActivity {
+         storagePermissionUnnecessary = true;
+     }
+ 
++    /**
++     * Enginehost: under the plugin-api transport this instance is a stand-in
++     * that Android never attached (SDLActivity.mSingleton, set by
++     * EngineHostGamePlugin), so anything that needs a real Activity (window,
++     * system services, assets, application info) is answered by the host's
++     * Activity instead. Without the host (the stock path) it is this instance.
++     */
++    private android.app.Activity host() {
++        return sHostActivity != null ? sHostActivity : this;
++    }
++
++    /**
++     * Enginehost: LOVE's native side calls this class's instance methods
++     * (src/common/android.cpp); it asks here for the object to call them on,
++     * because SDL's context is the host Activity under the plugin-api transport.
++     */
++    @Keep
++    public static GameActivity getGameActivity() {
++        return (GameActivity) mSingleton;
++    }
++
+     @Override
+     protected void onNewIntent(Intent intent) {
+         Log.d("GameActivity", "onNewIntent() with " + intent);
+@@ -291,7 +312,7 @@ public class GameActivity extends SDLActivity {
+     @Keep
+     public void setImmersiveMode(boolean immersive_mode) {
+         if (android.os.Build.VERSION.SDK_INT >= 28) {
+-            getWindow().getAttributes().layoutInDisplayCutoutMode = immersive_mode ?
++            host().getWindow().getAttributes().layoutInDisplayCutoutMode = immersive_mode ?
+                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES :
+                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER;
+             shortEdgesMode = immersive_mode;
+@@ -326,6 +347,10 @@ public class GameActivity extends SDLActivity {
+     }
+ 
+     public static DisplayMetrics getMetrics() {
++        // Enginehost: onCreate() sets this; the plugin-api transport never runs it.
++        if (metrics == null && getContext() != null) {
++            metrics = getContext().getResources().getDisplayMetrics();
++        }
+         return metrics;
+     }
+ 
+@@ -390,13 +415,17 @@ public class GameActivity extends SDLActivity {
+ 
+     @Keep
+     public boolean hasBackgroundMusic() {
+-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
++        AudioManager audioManager = (AudioManager) host().getSystemService(Context.AUDIO_SERVICE);
+         return audioManager.isMusicActive();
+     }
+ 
+     @Keep
+     public void showRecordingAudioPermissionMissingDialog() {
+         Log.d("GameActivity", "showRecordingAudioPermissionMissingDialog()");
++        if (sHostActivity != null) {
++            // The host owns permission prompts; this stand-in has no window to show a dialog in.
++            return;
++        }
+         runOnUiThread(new Runnable() {
+             @Override
+             public void run() {
+@@ -501,17 +530,23 @@ public class GameActivity extends SDLActivity {
+ 
+     @Keep
+     public boolean hasRecordAudioPermission() {
+-        return ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
++        return ActivityCompat.checkSelfPermission(host(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+     }
+ 
+     @Keep
+     public void requestRecordAudioPermission() {
+-        if (ActivityCompat.checkSelfPermission(this,
++        if (ActivityCompat.checkSelfPermission(host(),
+                 Manifest.permission.RECORD_AUDIO)
+                 == PackageManager.PERMISSION_GRANTED) {
+             return;
+         }
+ 
++        if (sHostActivity != null) {
++            // The answer would go to the host's onRequestPermissionsResult, never here,
++            // and this would wait for it forever: the host owns this prompt.
++            return;
++        }
++
+         Log.d("GameActivity", "Requesting mic permission and locking LÖVE thread until we have an answer.");
+         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, RECORD_AUDIO_REQUEST_CODE);
+ 
+@@ -527,7 +562,7 @@ public class GameActivity extends SDLActivity {
+     @Keep
+     public boolean initializeSafeArea() {
+         if (android.os.Build.VERSION.SDK_INT >= 28 && shortEdgesMode) {
+-            DisplayCutout cutout = getWindow().getDecorView().getRootWindowInsets().getDisplayCutout();
++            DisplayCutout cutout = host().getWindow().getDecorView().getRootWindowInsets().getDisplayCutout();
+ 
+             if (cutout != null) {
+                 safeAreaTop = cutout.getSafeInsetTop();
+@@ -544,7 +579,7 @@ public class GameActivity extends SDLActivity {
+     @Keep
+     public String[] buildFileTree() {
+         // Map key is path, value is directory flag
+-        HashMap<String, Boolean> map = buildFileTree(getAssets(), "", new HashMap<String, Boolean>());
++        HashMap<String, Boolean> map = buildFileTree(host().getAssets(), "", new HashMap<String, Boolean>());
+         ArrayList<String> result = new ArrayList<String>();
+ 
+         for (Map.Entry<String, Boolean> data: map.entrySet()) {
+@@ -621,7 +656,7 @@ public class GameActivity extends SDLActivity {
+     }
+ 
+     public boolean isNativeLibsExtracted() {
+-        ApplicationInfo appInfo = getApplicationInfo();
++        ApplicationInfo appInfo = host().getApplicationInfo();
+ 
+         if (android.os.Build.VERSION.SDK_INT >= 23) {
+             return (appInfo.flags & ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) != 0;
+@@ -632,7 +667,7 @@ public class GameActivity extends SDLActivity {
+ 
+     @Keep
+     public String getCRequirePath() {
+-        ApplicationInfo applicationInfo = getApplicationInfo();
++        ApplicationInfo applicationInfo = host().getApplicationInfo();
+ 
+         if (isNativeLibsExtracted()) {
+             return applicationInfo.nativeLibraryDir + "/?.so";

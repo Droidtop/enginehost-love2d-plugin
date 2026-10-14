@@ -32,6 +32,7 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.Keep;
 
+import org.libsdl.app.HIDDeviceManager;
 import org.libsdl.app.SDL;
 import org.libsdl.app.SDLActivity;
 import org.libsdl.app.SDLControllerManager;
@@ -132,6 +133,7 @@ public final class EngineHostGamePlugin implements EnginePlugin {
     }
 
     private EngineHost host;
+    private HIDDeviceManager hid;
     private final Map<String, Boolean> held = new HashMap<>();
 
     @Override
@@ -185,6 +187,22 @@ public final class EngineHostGamePlugin implements EnginePlugin {
         SDL.setContext(activity);
         SDL.setupJNI();
 
+        // SDLActivity.startNative() acquires SDL's HID device manager right after
+        // setContext(); that constructor is what registers the JVM with SDL's
+        // HIDAPI (HIDDeviceRegisterCallback). Without it SDL_JoystickInit reaches
+        // PLATFORM_hid_init with no JVM and dereferences null (Droidtop/tracker#483).
+        try {
+            hid = HIDDeviceManager.acquire(activity);
+        } catch (RuntimeException error) {
+            // No HID path at all, so tell SDL not to try one (SDL reads its hints from the environment).
+            Log.w(TAG, "HID device manager unavailable, HIDAPI joysticks off: " + error);
+            try {
+                Os.setenv("SDL_JOYSTICK_HIDAPI", "0", true);
+            } catch (ErrnoException ignored) {
+                // the controller is still driven by Enginehost's own input
+            }
+        }
+
         // GameActivity.getGamePath() -- not SDLActivity.sArguments -- is the
         // real JNI-called entry point love-android's own native side uses for
         // the game path (dq-actsandbox-02, BlueStacks: leaving this unset hit
@@ -201,6 +219,7 @@ public final class EngineHostGamePlugin implements EnginePlugin {
 
     @Override
     public void onResume() {
+        if (hid != null) hid.setFrozen(false);
         SDLActivity.mNextNativeState = SDLActivity.NativeState.RESUMED;
         SDLActivity.mIsResumedCalled = true;
         SDLActivity.handleNativeState();
@@ -208,6 +227,7 @@ public final class EngineHostGamePlugin implements EnginePlugin {
 
     @Override
     public void onPause() {
+        if (hid != null) hid.setFrozen(true);
         SDLActivity.mNextNativeState = SDLActivity.NativeState.PAUSED;
         SDLActivity.mIsResumedCalled = false;
         SDLActivity.handleNativeState();
@@ -228,6 +248,10 @@ public final class EngineHostGamePlugin implements EnginePlugin {
             }
         }
         SDLActivity.nativeQuit();
+        if (hid != null) {
+            HIDDeviceManager.release(hid);
+            hid = null;
+        }
     }
 
     @Override
