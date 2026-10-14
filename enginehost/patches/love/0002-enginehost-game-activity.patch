@@ -1,0 +1,115 @@
+diff --git a/src/common/android.cpp b/src/common/android.cpp
+index c10ef99..c2f802f 100644
+--- a/src/common/android.cpp
++++ b/src/common/android.cpp
+@@ -42,11 +42,37 @@ namespace love
+ namespace android
+ {
+ 
++// Enginehost: the engine below calls GameActivity's own instance methods
++// (setImmersiveMode, hasBackgroundMusic, buildFileTree, getCRequirePath, ...)
++// on SDL's context. Under the plugin-api transport that context is the host's
++// Activity, which has none of them (NoSuchMethodError, JNI abort). The plugin
++// runs a GameActivity stand-in as SDLActivity.mSingleton instead;
++// GameActivity.getGameActivity() hands it over, and it is SDL's context
++// itself again when GameActivity is the Activity (the stock path).
++static jobject getGameActivity(JNIEnv *env)
++{
++	jobject self = nullptr;
++	jclass clazz = env->FindClass("org/love2d/android/GameActivity");
++
++	if (clazz != nullptr)
++	{
++		jmethodID method = env->GetStaticMethodID(clazz, "getGameActivity", "()Lorg/love2d/android/GameActivity;");
++		if (method != nullptr)
++			self = env->CallStaticObjectMethod(clazz, method);
++		env->DeleteLocalRef(clazz);
++	}
++
++	if (env->ExceptionCheck())
++		env->ExceptionClear();
++
++	return self != nullptr ? self : (jobject) SDL_AndroidGetActivity();
++}
++
+ void setImmersive(bool immersive_active)
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+ 
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID method_id = env->GetMethodID(clazz, "setImmersiveMode", "(Z)V");
+@@ -61,7 +87,7 @@ bool getImmersive()
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+ 
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID method_id = env->GetMethodID(clazz, "getImmersiveMode", "()Z");
+@@ -100,7 +126,7 @@ double getScreenScale()
+ bool getSafeArea(int &top, int &left, int &bottom, int &right)
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID methodID = env->GetMethodID(clazz, "initializeSafeArea", "()Z");
+ 	bool hasSafeArea = false;
+@@ -267,7 +293,7 @@ bool createStorageDirectories()
+ bool hasBackgroundMusic()
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID method_id = env->GetMethodID(clazz, "hasBackgroundMusic", "()Z");
+@@ -283,7 +309,7 @@ bool hasBackgroundMusic()
+ bool hasRecordingPermission()
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID methodID = env->GetMethodID(clazz, "hasRecordAudioPermission", "()Z");
+@@ -304,7 +330,7 @@ bool hasRecordingPermission()
+ void requestRecordingPermission()
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID methodID = env->GetMethodID(clazz, "requestRecordAudioPermission", "()V");
+ 
+@@ -320,7 +346,7 @@ void requestRecordingPermission()
+ void showRecordingPermissionMissingDialog()
+ {
+ 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+-	jobject activity = (jobject) SDL_AndroidGetActivity();
++	jobject activity = getGameActivity(env);
+ 	jclass clazz(env->GetObjectClass(activity));
+ 	jmethodID methodID = env->GetMethodID(clazz, "showRecordingAudioPermissionMissingDialog", "()V");
+ 
+@@ -497,7 +523,7 @@ void *openArchive(PHYSFS_Io *io, const char *name, int forWrite, int *claimed)
+ 		// AAssetDir_getNextFileName intentionally excludes directories, so
+ 		// we have to use JNI that calls AssetManager.list() recursively.
+ 		JNIEnv *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+-		jobject activity = (jobject) SDL_AndroidGetActivity();
++		jobject activity = getGameActivity(env);
+ 		jclass clazz = env->GetObjectClass(activity);
+ 
+ 		jmethodID method = env->GetMethodID(clazz, "buildFileTree", "()[Ljava/lang/String;");
+@@ -770,7 +796,7 @@ const char *getCRequirePath()
+ 	if (!initialized)
+ 	{
+ 		JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
+-		jobject activity = (jobject) SDL_AndroidGetActivity();
++		jobject activity = getGameActivity(env);
+ 
+ 		jclass clazz(env->GetObjectClass(activity));
+ 		jmethodID method_id = env->GetMethodID(clazz, "getCRequirePath", "()Ljava/lang/String;");
