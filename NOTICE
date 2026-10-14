@@ -1,0 +1,10 @@
+LOVE plugin for Enginehost
+Enginehost wrapper and integration code: Copyright the Enginehost contributors, GNU General Public
+License, version 3 (LICENSE).
+
+Upstream: LOVE and LOVE for Android (https://love2d.org/), zlib (plus the licences of the libraries LOVE for Android bundles).
+zlib allows the combined work to be distributed under another licence provided altered versions are marked
+and the notice is kept. mpg123 and OpenAL Soft (LGPL-2.1-or-later) ship as their own shared libraries.
+Upstream's own licence and notice files stay in the tree unchanged: license.txt (LOVE for Android) and love/src/jni/love/license.txt (LOVE).
+The combined work is distributed under GPL-3.0 (owner rule, 2026-10-14: a codebase that can be
+GPL-3.0 must be). Every upstream copyright and licence notice in the source files stays as it is.
