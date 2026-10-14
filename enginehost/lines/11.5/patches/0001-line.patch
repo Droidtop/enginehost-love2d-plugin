@@ -1,0 +1,312 @@
+diff --git a/.github/workflows/main.yml b/.github/workflows/main.yml
+deleted file mode 100644
+index dcf42574e44feeebb5ac883809c16c959587a2db..0000000000000000000000000000000000000000
+--- a/.github/workflows/main.yml
++++ /dev/null
+@@ -1,45 +0,0 @@
+-name: build
+-
+-on: [push, pull_request]
+-
+-jobs:
+-  build-android:
+-    runs-on: ubuntu-latest
+-    steps:
+-    - name: Checkout
+-      uses: actions/checkout@v3
+-      with:
+-        submodules: true
+-    - name: Setup Java 17
+-      uses: actions/setup-java@v3
+-      with:
+-        distribution: adopt-hotspot
+-        java-version: 17
+-        cache: gradle
+-    - name: Build
+-      run: bash ./gradlew assembleNormalRecord assembleEmbedRelease bundleNormalNoRecordRelease bundleEmbedRecordRelease bundleEmbedNoRecordRelease
+-    - name: Artifact (Normal debug APK)
+-      uses: actions/upload-artifact@v3
+-      with:
+-        name: love-android-debug.apk
+-        path: app/build/outputs/apk/normalRecord/debug/app-normal-record-debug.apk
+-    - name: Artifact (Normal unsigned APK)
+-      uses: actions/upload-artifact@v3
+-      with:
+-        name: love-android.apk
+-        path: app/build/outputs/apk/normalRecord/release/app-normal-record-release-unsigned.apk
+-    - name: Artifact (Normal AAB w/o recording)
+-      uses: actions/upload-artifact@v3
+-      with:
+-        name: love-android-ps.aab
+-        path: app/build/outputs/bundle/normalNoRecordRelease/app-normal-noRecord-release.aab
+-    - name: Artifact (Embed AAB)
+-      uses: actions/upload-artifact@v3
+-      with:
+-        name: love-android-embed-record.aab
+-        path: app/build/outputs/bundle/embedRecordRelease/app-embed-record-release.aab
+-    - name: Artifact (Embed AAB w/o recording)
+-      uses: actions/upload-artifact@v3
+-      with:
+-        name: love-android-embed.aab
+-        path: app/build/outputs/bundle/embedNoRecordRelease/app-embed-noRecord-release.aab
+diff --git a/app/build.gradle b/app/build.gradle
+index b5f49c2eb2c97aa41bb304b09b08ee0a68f7fc78..d527bc2faa4fc022d9a178866ebd05d0e79aafea 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -40,7 +40,7 @@ android {
+     }
+     buildTypes {
+         release {
+-            minifyEnabled true
++            minifyEnabled false
+             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+         }
+     }
+@@ -62,6 +62,9 @@ android {
+     lint {
+         abortOnError false
+     }
++    androidResources {
++        additionalParameters += ["--package-id", "0x80", "--allow-reserved-package-id"]
++    }
+ }
+ 
+ dependencies {
+diff --git a/gradle.properties b/gradle.properties
+index 57ea625596144cc96973b1dfd431da0d96659042..21eae450318ecacd20c309a4f6834ada5a89af42 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -6,7 +6,7 @@
+ #app.name=LÖVE for Android
+ app.name_byte_array=76,195,150,86,69,32,102,111,114,32,65,110,100,114,111,105,100
+ 
+-app.application_id=org.love2d.android
++app.application_id=dev.enginehost.plugin.love2d.v11_5.slot1
+ app.orientation=landscape
+ app.version_code=31
+ app.version_name=11.5
+@@ -17,3 +17,7 @@ android.useAndroidX=true
+ android.defaults.buildfeatures.buildconfig=true
+ android.nonTransitiveRClass=true
+ android.nonFinalResIds=true
++
++# Two ABIs' native libraries are packaged into one APK; the default Gradle
++# heap is not enough for that on the CI runner.
++org.gradle.jvmargs=-Xmx4g
+diff --git a/love/build.gradle b/love/build.gradle
+index eb3dc16e2e10363753bfecb2b36dbfc127fc4e3e..72b82d621987fb71301f79ee53888e34b0d4d371 100644
+--- a/love/build.gradle
++++ b/love/build.gradle
+@@ -22,7 +22,7 @@ android {
+             // Specifies the ABI configurations of your native
+             // libraries Gradle should build and package with your APK.
+             // noinspection ChromeOsAbiSupport
+-            abiFilters 'armeabi-v7a', 'arm64-v8a'
++            abiFilters 'arm64-v8a', 'x86_64'
+             debugSymbolLevel 'SYMBOL_TABLE'
+         }
+     }
+@@ -63,7 +63,7 @@ android {
+ 
+     buildTypes {
+         release {
+-            minifyEnabled true
++            minifyEnabled false
+             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+         }
+         debug {
+@@ -119,4 +119,8 @@ android {
+ dependencies {
+     api fileTree(dir: 'libs', include: ['*.jar'])
+     api 'androidx.appcompat:appcompat:1.6.1'
++    // Enginehost plugin-api contract stubs (docs/engine-sandbox.md "Single
++    // transport"); compileOnly, the real classes come from the host app's
++    // own classpath at runtime, never packaged into this bundle.
++    compileOnly project(':api')
+ }
+diff --git a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 6a0a9be5ef89501c257c15cbf5e25c9955a8051a..892c05be2850f035114de340f7c819b017990569 100644
+--- a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -22,6 +22,7 @@ import android.net.Uri;
+ import android.os.Build;
+ import android.os.Bundle;
+ import android.os.Handler;
++import android.os.Looper;
+ import android.os.Message;
+ import android.text.Editable;
+ import android.text.InputType;
+@@ -210,8 +211,8 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+     public static boolean mBrokenLibraries = true;
+ 
+     // Main components
+-    protected static SDLActivity mSingleton;
+-    protected static SDLSurface mSurface;
++    public static SDLActivity mSingleton;
++    public static SDLSurface mSurface;
+     protected static DummyEdit mTextEdit;
+     protected static boolean mScreenKeyboardShown;
+     protected static ViewGroup mLayout;
+@@ -222,7 +223,31 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+     protected static HIDDeviceManager mHIDDeviceManager;
+ 
+     // This is what SDL runs in. It invokes SDL_main(), eventually
+-    protected static Thread mSDLThread;
++    public static Thread mSDLThread;
++
++    // Enginehost adapter hooks (docs/engine-sandbox.md "Correction... SDLSurface.java"):
++    // mSingleton stays a plain, never-Activity-attached SDLActivity instance
++    // (`new SDLActivity()`, never passed through Android's own Instrumentation/
++    // attach()) -- it exists only as a home for pressBackButton()/sendCommand()/
++    // commandHandler/isFinishing(), none of which need real attachment (checked
++    // per call site, not assumed). Everything that DOES need a real, attached
++    // Activity (orientation, minimize, openURL, multi-window) is redirected
++    // through these hooks instead of mSingleton, set once by the adapter
++    // (EngineHostGamePlugin) before SDL.setupJNI() runs. Every hook has a safe
++    // default so this file still behaves exactly as before for any caller
++    // (e.g. an ordinary Activity-hosted SDLActivity subclass) that never sets
++    // them -- getLibraries()/getArguments()/getMainSharedObject()/
++    // getMainFunction() below still work as virtual overrides in that case,
++    // since these suppliers default to delegating to mSingleton's own
++    // overridable methods rather than replacing that mechanism outright.
++    public static java.util.function.Supplier<String[]> sArguments = () -> mSingleton.getArguments();
++    public static java.util.function.Supplier<String> sMainSharedObject = () -> mSingleton.getMainSharedObject();
++    public static java.util.function.Supplier<String> sMainFunction = () -> mSingleton.getMainFunction();
++    /** Runs on the SDLMain thread once nativeRunMain() returns and the game did not call SDL_Quit itself; replaces mSingleton.finish(). */
++    public static Runnable sOnGameEnded = null;
++    /** The real, attached host Activity -- EngineHost.activity() under the plugin-api transport. Null (and every hook below no-ops) when nobody set it, e.g. an ordinary Activity-hosted subclass that IS mSingleton itself. */
++    public static Activity sHostActivity = null;
++
+ 
+     protected static SDLGenericMotionListener_API12 getMotionListener() {
+         if (mMotionListener == null) {
+@@ -667,10 +692,17 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+ 
+     // Used to get us onto the activity's main thread
+     public void pressBackButton() {
+-        runOnUiThread(new Runnable() {
++        // Not runOnUiThread(): mSingleton may be a plain, unattached
++        // SDLActivity instance (see the class-level comment above), whose
++        // inherited Activity.runOnUiThread NPEs (mUiThread/mHandler are only
++        // set by Android's own attach()). A plain main-looper Handler needs
++        // no attachment at all.
++        new Handler(Looper.getMainLooper()).post(new Runnable() {
+             @Override
+             public void run() {
+-                if (!SDLActivity.this.isFinishing()) {
++                if (sHostActivity != null) {
++                    if (!sHostActivity.isFinishing()) sHostActivity.onBackPressed();
++                } else if (!SDLActivity.this.isFinishing()) {
+                     SDLActivity.this.superOnBackPressed();
+                 }
+             }
+@@ -1051,7 +1083,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         }
+ 
+         Log.v(TAG, "setOrientation() requestedOrientation=" + req + " width=" + w +" height="+ h +" resizable=" + resizable + " hint=" + hint);
+-        mSingleton.setRequestedOrientation(req);
++        if (sHostActivity != null) sHostActivity.setRequestedOrientation(req); else mSingleton.setRequestedOrientation(req);
+     }
+ 
+     /**
+@@ -1066,7 +1098,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         Intent startMain = new Intent(Intent.ACTION_MAIN);
+         startMain.addCategory(Intent.CATEGORY_HOME);
+         startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+-        mSingleton.startActivity(startMain);
++        (sHostActivity != null ? sHostActivity : mSingleton).startActivity(startMain);
+     }
+ 
+     /**
+@@ -1836,7 +1868,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+             }
+             i.addFlags(flags);
+ 
+-            mSingleton.startActivity(i);
++            (sHostActivity != null ? sHostActivity : mSingleton).startActivity(i);
+         } catch (Exception ex) {
+             return -1;
+         }
+@@ -1897,9 +1929,9 @@ class SDLMain implements Runnable {
+     @Override
+     public void run() {
+         // Runs SDL_main()
+-        String library = SDLActivity.mSingleton.getMainSharedObject();
+-        String function = SDLActivity.mSingleton.getMainFunction();
+-        String[] arguments = SDLActivity.mSingleton.getArguments();
++        String library = SDLActivity.sMainSharedObject.get();
++        String function = SDLActivity.sMainFunction.get();
++        String[] arguments = SDLActivity.sArguments.get();
+ 
+         try {
+             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DISPLAY);
+@@ -1915,9 +1947,11 @@ class SDLMain implements Runnable {
+ 
+         // love2d-mod-start: allow restarting of the native thread
+         if (!SDLActivity.mExitCalledFromJava) {
+-            if (SDLActivity.mSingleton != null && !SDLActivity.mSingleton.isFinishing()) {
++            SDLActivity.mSDLThread = null;
++            if (SDLActivity.sOnGameEnded != null) {
++                SDLActivity.sOnGameEnded.run();
++            } else if (SDLActivity.mSingleton != null && !SDLActivity.mSingleton.isFinishing()) {
+                 // Let's finish the Activity
+-                SDLActivity.mSDLThread = null;
+                 SDLActivity.mSingleton.finish();
+             }  // else: Activity is already being destroyed
+         }
+diff --git a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java
+index 0857e4b6f3dbd830add6fe9c6a4d7b648589e122..4f675ab4983b7d6df9a89a0e07c7b4191ea676bb 100644
+--- a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java
++++ b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java
+@@ -138,7 +138,10 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
+         // Prevent a screen distortion glitch,
+         // for instance when the device is in Landscape and a Portrait App is resumed.
+         boolean skip = false;
+-        int requestedOrientation = SDLActivity.mSingleton.getRequestedOrientation();
++        // sHostActivity, not mSingleton: the real, attached host Activity
++        // (docs/engine-sandbox.md "Correction... SDLSurface.java"); mSingleton
++        // may be an unattached stand-in with no real requested orientation.
++        int requestedOrientation = (SDLActivity.sHostActivity != null ? SDLActivity.sHostActivity : SDLActivity.mSingleton).getRequestedOrientation();
+ 
+         if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT || requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT) {
+             if (mWidth > mHeight) {
+@@ -164,7 +167,7 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
+         // Don't skip in MultiWindow.
+         if (skip) {
+             if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+-                if (SDLActivity.mSingleton.isInMultiWindowMode()) {
++                if ((SDLActivity.sHostActivity != null ? SDLActivity.sHostActivity : SDLActivity.mSingleton).isInMultiWindowMode()) {
+                     Log.v("SDL", "Don't skip in Multi-Window");
+                     skip = false;
+                 }
+diff --git a/love/src/main/java/org/love2d/android/GameActivity.java b/love/src/main/java/org/love2d/android/GameActivity.java
+index 1f1871eea0a93cf71fdd218e021e748a00e17e03..4429159181244712c0383bfe71e6c5bd37a3fe9f 100644
+--- a/love/src/main/java/org/love2d/android/GameActivity.java
++++ b/love/src/main/java/org/love2d/android/GameActivity.java
+@@ -132,6 +132,16 @@ public class GameActivity extends SDLActivity {
+         }
+     }
+ 
++    /**
++     * Enginehost: the game to run, set by the host's wrapper activity in its
++     * handleIntent: a folder (with a trailing separator) or an archive, on
++     * storage the host process can already read, so no permission is asked.
++     */
++    protected void setEnginehostGame(String path) {
++        gamePath = path;
++        storagePermissionUnnecessary = true;
++    }
++
+     @Override
+     protected void onNewIntent(Intent intent) {
+         Log.d("GameActivity", "onNewIntent() with " + intent);
+diff --git a/settings.gradle b/settings.gradle
+index 8b03ee167f1b40440e7ac291f068ba265a0b365d..7ccf17c9d8ed75204fc7ec4f4cdc91340d028625 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -1,2 +1,3 @@
+ include 'app'
+-include 'love'
+\ No newline at end of file
++include 'love'
++include ':api'

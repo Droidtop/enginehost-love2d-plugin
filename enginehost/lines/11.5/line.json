@@ -1,0 +1,8 @@
+{
+  "upstream": {
+    "repo": "love2d/love-android",
+    "ref": "11.5",
+    "commit": "7a32a370f9446581678dc2e7fbc4af3aac4643e6"
+  },
+  "version": "11.5"
+}
