@@ -27,7 +27,7 @@
     "revision": "plugin/11.5"
   },
   "licenses": [
-    "zlib (LÖVE, LÖVE for Android, the Enginehost wrapper)",
+    "GPL-3.0 (the Enginehost wrapper and the combined bundle)", "zlib (LÖVE, LÖVE for Android)",
     "LGPL-2.1-or-later (mpg123, OpenAL Soft; shared libraries)",
     "the other bundled notices in LICENSE.love-android.txt"
   ],
