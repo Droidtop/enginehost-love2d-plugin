@@ -912,7 +912,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
                 if (data instanceof Integer) {
                     // Let's figure out if we're already laid out fullscreen or not.
-                    Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+                    // Enginehost: under the plugin transport this instance is never attached, and an
+                    // unattached Activity's getSystemService throws "System services not available to
+                    // Activities before onCreate()" on SDL's thread (rig, 2026-10-22, Droidtop/tracker#550).
+                    // The host's attached Activity answers instead, as for the other host calls here.
+                    Activity services = sHostActivity != null ? sHostActivity : this;
+                    Display display = ((WindowManager) services.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
                     DisplayMetrics realMetrics = new DisplayMetrics();
                     display.getRealMetrics(realMetrics);
 
