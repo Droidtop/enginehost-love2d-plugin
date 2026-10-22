@@ -1,0 +1,18 @@
+diff --git a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 892c05be2850f035114de340f7c819b017990569..06b089ed5f14e08c181c955d024da1bad67725e9 100644
+--- a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -912,7 +912,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+ 
+                 if (data instanceof Integer) {
+                     // Let's figure out if we're already laid out fullscreen or not.
+-                    Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
++                    // Enginehost: under the plugin transport this instance is never attached, and an
++                    // unattached Activity's getSystemService throws "System services not available to
++                    // Activities before onCreate()" on SDL's thread (rig, 2026-10-22, Droidtop/tracker#550).
++                    // The host's attached Activity answers instead, as for the other host calls here.
++                    Activity services = sHostActivity != null ? sHostActivity : this;
++                    Display display = ((WindowManager) services.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+                     DisplayMetrics realMetrics = new DisplayMetrics();
+                     display.getRealMetrics(realMetrics);
+ 
