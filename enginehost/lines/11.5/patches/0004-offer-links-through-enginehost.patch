@@ -1,0 +1,46 @@
+diff --git a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 06b089ed5f14e08c181c955d024da1bad67725e9..3b19b64c2fdb1d71b732d5d3ac89845aaa23f5e3 100644
+--- a/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/love/src/jni/SDL2/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -247,6 +247,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+     public static Runnable sOnGameEnded = null;
+     /** The real, attached host Activity -- EngineHost.activity() under the plugin-api transport. Null (and every hook below no-ops) when nobody set it, e.g. an ordinary Activity-hosted subclass that IS mSingleton itself. */
+     public static Activity sHostActivity = null;
++    // Enginehost: where a link the game opens goes (EngineHost.openLink), set by the adapter. Set,
++    // openURL never starts an activity itself: Enginehost offers the link to the person
++    // (Enginehost docs/SPEC.md, "Links a game opens"). Unset, openURL behaves as before.
++    public static java.util.function.Predicate<String> sOpenLink = null;
+ 
+ 
+     protected static SDLGenericMotionListener_API12 getMotionListener() {
+@@ -1861,6 +1865,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+      */
+     public static int openURL(String url)
+     {
++        if (sOpenLink != null) {
++            return sOpenLink.test(url) ? 0 : -1;
++        }
+         try {
+             Intent i = new Intent(Intent.ACTION_VIEW);
+             i.setData(Uri.parse(url));
+diff --git a/love/src/main/java/org/love2d/android/EngineHostGamePlugin.java b/love/src/main/java/org/love2d/android/EngineHostGamePlugin.java
+index f3a2a043c3f42d33c44e8abf1f8d4a58b99db6fa..38419a79089719fd10584f5b634436dd2f1db05d 100755
+--- a/love/src/main/java/org/love2d/android/EngineHostGamePlugin.java
++++ b/love/src/main/java/org/love2d/android/EngineHostGamePlugin.java
+@@ -182,6 +182,16 @@ public final class EngineHostGamePlugin implements EnginePlugin {
+         SDLActivity.sArguments = () -> new String[] {gameFile};
+         SDLActivity.sMainSharedObject = () -> "liblove.so"; // GameActivity.getMainSharedObject()'s own API21+ answer; this plugin's minSdk is 26
+         SDLActivity.sOnGameEnded = () -> host.finish();
++        // love.system.openURL: offered by Enginehost, never opened by the engine.
++        SDLActivity.sOpenLink = url -> {
++            try {
++                return host.openLink(url);
++            } catch (IncompatibleClassChangeError olderHost) {
++                // An Enginehost from before openLink(): the link is not opened, rather than
++                // opened unasked.
++                return false;
++            }
++        };
+         SDLActivity.mHasFocus = true; // no onWindowFocusChanged under this transport; Enginehost's own host Activity owns real focus
+         SDLActivity.mIsResumedCalled = true; // matches resumeNativeThread(); real pause/resume still toggles this from onPause/onResume below
+         SDL.setContext(activity);
