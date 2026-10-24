@@ -77,3 +77,10 @@ pad event to LÖVE as the button or axis it is bound to.
 
 Upstream: https://github.com/love2d/love-android, https://github.com/love2d/love.
 Enginehost: https://github.com/Droidtop/enginehost.
+
+## Links the game opens are offered by Enginehost (2026-10-24)
+
+`love.system.openURL` ends in SDL's `SDLActivity.openURL`. The adapter sets `SDLActivity.sOpenLink`
+to `EngineHost.openLink`, so the link is offered to the person by Enginehost (checked, named,
+open or copy; Enginehost docs/SPEC.md, "Links a game opens") and never opened by the engine. On
+an Enginehost without `openLink` nothing opens. Line patch `0004-offer-links-through-enginehost.patch`.

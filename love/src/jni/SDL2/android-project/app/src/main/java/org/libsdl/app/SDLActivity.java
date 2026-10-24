@@ -247,6 +247,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     public static Runnable sOnGameEnded = null;
     /** The real, attached host Activity -- EngineHost.activity() under the plugin-api transport. Null (and every hook below no-ops) when nobody set it, e.g. an ordinary Activity-hosted subclass that IS mSingleton itself. */
     public static Activity sHostActivity = null;
+    // Enginehost: where a link the game opens goes (EngineHost.openLink), set by the adapter. Set,
+    // openURL never starts an activity itself: Enginehost offers the link to the person
+    // (Enginehost docs/SPEC.md, "Links a game opens"). Unset, openURL behaves as before.
+    public static java.util.function.Predicate<String> sOpenLink = null;
 
 
     protected static SDLGenericMotionListener_API12 getMotionListener() {
@@ -1861,6 +1865,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      */
     public static int openURL(String url)
     {
+        if (sOpenLink != null) {
+            return sOpenLink.test(url) ? 0 : -1;
+        }
         try {
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setData(Uri.parse(url));

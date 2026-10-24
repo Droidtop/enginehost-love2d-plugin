@@ -182,6 +182,16 @@ public final class EngineHostGamePlugin implements EnginePlugin {
         SDLActivity.sArguments = () -> new String[] {gameFile};
         SDLActivity.sMainSharedObject = () -> "liblove.so"; // GameActivity.getMainSharedObject()'s own API21+ answer; this plugin's minSdk is 26
         SDLActivity.sOnGameEnded = () -> host.finish();
+        // love.system.openURL: offered by Enginehost, never opened by the engine.
+        SDLActivity.sOpenLink = url -> {
+            try {
+                return host.openLink(url);
+            } catch (IncompatibleClassChangeError olderHost) {
+                // An Enginehost from before openLink(): the link is not opened, rather than
+                // opened unasked.
+                return false;
+            }
+        };
         SDLActivity.mHasFocus = true; // no onWindowFocusChanged under this transport; Enginehost's own host Activity owns real focus
         SDLActivity.mIsResumedCalled = true; // matches resumeNativeThread(); real pause/resume still toggles this from onPause/onResume below
         SDL.setContext(activity);

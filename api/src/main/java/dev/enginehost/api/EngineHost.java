@@ -78,6 +78,12 @@ public interface EngineHost {
     /** Requests haptic feedback from the controller that produced an event. */
     boolean rumbleController(int deviceId, long durationMs, int amplitude);
     void finish();
+    /**
+     * A link the game asks to open, offered to the person by Enginehost and never opened by the
+     * core; returns at once, true when Enginehost took it. Added after the first hosts shipped: an
+     * older host throws IncompatibleClassChangeError.
+     */
+    default boolean openLink(String url) { return false; }
 
     /**
      * Ends this runtime and starts the same game again in a fresh process.
