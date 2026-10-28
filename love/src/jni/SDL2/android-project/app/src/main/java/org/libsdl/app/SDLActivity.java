@@ -540,6 +540,14 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         }
     }
 
+    // Enginehost: onCreate() reports the screen's orientation to SDL once at start, and SDLSurface
+    // only reports later changes. The plugin-api transport never runs onCreate(), so its adapter
+    // calls this at the same point instead (Droidtop/tracker#483).
+    public static void reportCurrentOrientation() {
+        mCurrentOrientation = getCurrentOrientation();
+        onNativeOrientationChanged(mCurrentOrientation);
+    }
+
     public static int getCurrentOrientation() {
         int result = SDL_ORIENTATION_UNKNOWN;
 
@@ -1714,25 +1722,36 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         }
     }
 
+    // Enginehost: under the plugin-api transport onCreate() never runs, so nothing creates the
+    // handler there and the three calls below dereferenced null (Droidtop/tracker#483). It is made
+    // on first use instead, from SDL.getContext(), the host Activity. Where onCreate() did run,
+    // the handler already exists and this changes nothing.
+    private static synchronized SDLClipboardHandler clipboardHandler() {
+        if (mClipboardHandler == null) {
+            mClipboardHandler = new SDLClipboardHandler();
+        }
+        return mClipboardHandler;
+    }
+
     /**
      * This method is called by SDL using JNI.
      */
     public static boolean clipboardHasText() {
-        return mClipboardHandler.clipboardHasText();
+        return clipboardHandler().clipboardHasText();
     }
 
     /**
      * This method is called by SDL using JNI.
      */
     public static String clipboardGetText() {
-        return mClipboardHandler.clipboardGetText();
+        return clipboardHandler().clipboardGetText();
     }
 
     /**
      * This method is called by SDL using JNI.
      */
     public static void clipboardSetText(String string) {
-        mClipboardHandler.clipboardSetText(string);
+        clipboardHandler().clipboardSetText(string);
     }
 
     /**
