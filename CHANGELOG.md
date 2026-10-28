@@ -17,6 +17,12 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Droidtop/tracker#483, the two `onCreate()` steps the plugin-api transport
+  skipped (1.0.2): SDL's clipboard handler, which `clipboardHasText`,
+  `clipboardGetText` and `clipboardSetText` dereferenced (so
+  `love.system.getClipboardText` and `setClipboardText` crashed), is made on
+  first use; and the screen's orientation is reported to SDL at start instead
+  of staying "unknown" until the sensor moves. Line patch 0005.
 - Droidtop/tracker#483, crash on start with the joystick module on:
   `EngineHostGamePlugin` now acquires SDL's `HIDDeviceManager` the way
   `SDLActivity.startNative()` does. Only that constructor registers the JVM

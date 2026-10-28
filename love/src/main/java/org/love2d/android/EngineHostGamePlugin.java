@@ -210,6 +210,11 @@ public final class EngineHostGamePlugin implements EnginePlugin {
         // getExternalFilesDir() on this unattached instance and NPEs).
         ((GameActivity) SDLActivity.mSingleton).setEnginehostGame(gameFile);
 
+        // onCreate() tells SDL the screen's orientation once; SDLSurface only reports changes, so
+        // without this SDL starts at "unknown" (Droidtop/tracker#483, line patch 0005). The
+        // clipboard handler onCreate() also made is now made on first use by the same patch.
+        SDLActivity.reportCurrentOrientation();
+
         SDLSurface surface = new SDLSurface(activity);
         SDLActivity.mSurface = surface;
         session.display().addView(surface, new FrameLayout.LayoutParams(-1, -1));
