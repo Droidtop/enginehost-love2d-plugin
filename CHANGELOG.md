@@ -5,6 +5,13 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- Declares `"lockdown": true` (1.0.3, Droidtop/tracker#550): every launch of this core is
+  locked down, with files only through Enginehost's broker, no sockets and no exec. On the
+  emulator conformance run its test game passed every check that ran under the forced
+  lockdown (Enginehost run 40927896898) and under a learning run (40929951174).
+
 ### Changed
 
 - Moved onto the plugin-api transport (`runtimeTransport: plugin`):
