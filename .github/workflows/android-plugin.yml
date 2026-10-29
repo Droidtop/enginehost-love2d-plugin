@@ -66,6 +66,8 @@ jobs:
             echo "applying $patch"
             git -C love/src/jni/love apply --verbose "$GITHUB_WORKSPACE/$patch"
           done
+      # The plugin API this core compiles against: Enginehost's own, at the commit pinned here.
+      - uses: Droidtop/enginehost/.github/actions/plugin-api@527142623b8099782637b46c09e77e86988cfea9
       - name: Build the runtime APK
         # The normal flavour opens a game it is handed rather than one packed
         # inside it; noRecord leaves out the microphone permission, which no

@@ -1,7 +1,7 @@
 {
   "bundleId": "dev.enginehost.love2d.11.v1",
   "engine": "love2d",
-  "pluginVersion": "1.0.3",
+  "pluginVersion": "1.0.4",
   "lockdown": true,
   "apiVersion": 1,
   "entrypoint": "org.love2d.android.EngineHostGamePlugin",
